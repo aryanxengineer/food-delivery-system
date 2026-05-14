@@ -6,12 +6,11 @@ import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { InputCreateOrderType } from "../validators/order.schema.js";
 
+const ALLOWED_STATUSES = ["accepted", "preparing", "ready_for_rider"] as const;
+
 export class OrderController {
   constructor(private orderService: OrderService) {}
 
-  /**
-   * Create New Order
-   */
   createOrder = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const userId = req.user?._id;
@@ -32,9 +31,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Fetch My Orders
-   */
   getMyOrders = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const userId = req.user?._id;
@@ -54,9 +50,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Fetch Single Order
-   */
   fetchSingleOrder = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const { id } = req.params;
@@ -76,9 +69,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Fetch Restaurant Orders
-   */
   fetchRestaurantOrders = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const { restaurantId } = req.params;
@@ -94,16 +84,19 @@ export class OrderController {
         res,
         statusCode: 200,
         message: "Restaurant orders fetched successfully",
-        data: result,
+        data: {
+          orders: result.orders,
+          ordersCount: result.ordersCount,
+        },
       });
     },
   );
 
-  /**
-   * Update Order Status
-   */
   updateOrderStatus = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
+
+      const userId = req.user?._id;
+
       const { orderId } = req.params;
       const { status } = req.body;
 
@@ -111,11 +104,15 @@ export class OrderController {
         throw new BadRequestError("Invalid order id.");
       }
 
-      if (!status) {
+      if (!userId) {
+        throw new UnauthorizedError("Invalid user id.");
+      }
+
+      if (!!ALLOWED_STATUSES.includes(status)) {
         throw new BadRequestError("Order status required.");
       }
 
-      const result = await this.orderService.updateOrderStatus(orderId, status);
+      const result = await this.orderService.updateOrderStatus(userId, orderId, status);
 
       return sendResponse({
         res,
@@ -126,9 +123,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Assign Rider To Order
-   */
   assignRiderToOrder = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const { orderId, riderId, riderName, riderPhone } = req.body;
@@ -153,9 +147,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Get Current Order For Rider
-   */
   getCurrentOrderForRider = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const riderId = req.user?._id;
@@ -175,9 +166,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Update Rider Order Status
-   */
   updateOrderStatusRider = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const riderId = req.user?._id;
@@ -206,9 +194,6 @@ export class OrderController {
     },
   );
 
-  /**
-   * Fetch Order For Payment
-   */
   fetchOrderForPayment = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const { id } = req.params;

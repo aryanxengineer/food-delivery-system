@@ -1,12 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export interface ICart extends Document {
+export interface ICart {
   userId: mongoose.Types.ObjectId;
   restaurantId: mongoose.Types.ObjectId;
   itemId: mongoose.Types.ObjectId;
   quantity: number;
-  cretedAt: Date;
-  updatedAt: Date;
 }
 
 const schema = new Schema<ICart>(

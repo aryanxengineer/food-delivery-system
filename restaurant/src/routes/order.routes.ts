@@ -5,11 +5,22 @@ import { OrderService } from "../services/order.service.js";
 import { OrderController } from "../controllers/order.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { inputCreateOrder } from "../validators/order.schema.js";
+import { RestaurantRepository } from "../repositories/restaurant.repository.js";
+import { CartRepository } from "../repositories/cart.repository.js";
+import { AddressRepository } from "../repositories/address.repository.js";
 
 const orderRouter = Router();
 
+const restaurantRepository = new RestaurantRepository();
+const cartRepository = new CartRepository();
+const addressRepository = new AddressRepository();
 const orderRepository = new OrderRepository();
-const orderService = new OrderService(orderRepository);
+const orderService = new OrderService(
+  restaurantRepository,
+  cartRepository,
+  addressRepository,
+  orderRepository,
+);
 const orderController = new OrderController(orderService);
 
 orderRouter.put("/assign/rider", orderController.assignRiderToOrder);
@@ -19,7 +30,11 @@ orderRouter.get("/payment/:id", orderController.fetchOrderForPayment);
 
 orderRouter.use(isAuth);
 
-orderRouter.post("/new", validate(inputCreateOrder), orderController.createOrder);
+orderRouter.post(
+  "/new",
+  validate(inputCreateOrder),
+  orderController.createOrder,
+);
 orderRouter.get("/myorder", orderController.getMyOrders);
 orderRouter.get("/:id", orderController.fetchSingleOrder);
 
