@@ -2,9 +2,15 @@ import { Response } from "express";
 import { AuthenticatedRequest } from "../middlewares/authentication.middleware.js";
 import { OrderService } from "../services/order.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
+import {
+  BadRequestError,
+  ForbiddenError,
+  UnauthorizedError,
+} from "../utils/errors.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { InputCreateOrderType } from "../validators/order.schema.js";
+import { env } from "../config/dotenv.config.js";
+import { AssignRiderToOrderInputType } from "../validators/rider.schema.js";
 
 const ALLOWED_STATUSES = ["accepted", "preparing", "ready_for_rider"] as const;
 
@@ -94,7 +100,6 @@ export class OrderController {
 
   updateOrderStatus = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
-
       const userId = req.user?._id;
 
       const { orderId } = req.params;
@@ -112,7 +117,11 @@ export class OrderController {
         throw new BadRequestError("Order status required.");
       }
 
-      const result = await this.orderService.updateOrderStatus(userId, orderId, status);
+      const result = await this.orderService.updateOrderStatus(
+        userId,
+        orderId,
+        status,
+      );
 
       return sendResponse({
         res,
@@ -125,18 +134,13 @@ export class OrderController {
 
   assignRiderToOrder = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
-      const { orderId, riderId, riderName, riderPhone } = req.body;
-
-      if (!orderId || !riderId || !riderName || !riderPhone) {
-        throw new BadRequestError("All rider details are required.");
+      if (req.headers["x-internal-key"] !== env.INTERNAL_SERVICE_KEY) {
+        throw new ForbiddenError("Forbidden request");
       }
 
-      const result = await this.orderService.assignRiderToOrder({
-        orderId,
-        riderId,
-        riderName,
-        riderPhone,
-      });
+      const data: AssignRiderToOrderInputType = req.body;
+
+      const result = await this.orderService.assignRiderToOrder(data);
 
       return sendResponse({
         res,
@@ -149,10 +153,14 @@ export class OrderController {
 
   getCurrentOrderForRider = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
-      const riderId = req.user?._id;
+      if (req.headers["x-internal-key"] !== env.INTERNAL_SERVICE_KEY) {
+        throw new ForbiddenError("Forbidden request");
+      }
 
-      if (!riderId) {
-        throw new UnauthorizedError("Unauthorized rider.");
+      const { riderId } = req.query;
+
+      if (typeof riderId !== "string") {
+        throw new BadRequestError("Required rider id");
       }
 
       const result = await this.orderService.getCurrentOrderForRider(riderId);
@@ -168,34 +176,32 @@ export class OrderController {
 
   updateOrderStatusRider = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
-      const riderId = req.user?._id;
-      const { orderId, status } = req.body;
-
-      if (!riderId) {
-        throw new UnauthorizedError("Unauthorized rider.");
+      if (req.headers["x-internal-key"] !== env.INTERNAL_SERVICE_KEY) {
+        throw new ForbiddenError("Forbidden request");
       }
 
-      if (!orderId || !status) {
-        throw new BadRequestError("Order id and status required.");
+      const { orderId } = req.body;
+
+      if (!orderId) {
+        throw new BadRequestError("Order id is required.");
       }
 
-      const result = await this.orderService.updateOrderStatusRider(
-        riderId,
-        orderId,
-        status,
-      );
+      await this.orderService.updateOrderStatusRider(orderId);
 
       return sendResponse({
         res,
-        statusCode: 200,
+        statusCode: 201,
         message: "Rider order status updated successfully",
-        data: result,
       });
     },
   );
 
   fetchOrderForPayment = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
+      if (req.headers["x-internal-key"] !== process.env.INTERNAL_SERVICE_KEY) {
+        throw new ForbiddenError("Forbidden");
+      }
+
       const { id } = req.params;
 
       if (typeof id !== "string") {

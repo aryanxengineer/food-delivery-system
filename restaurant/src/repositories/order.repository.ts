@@ -28,4 +28,36 @@ export class OrderRepository {
   findOneAndUpdate = async (data: Partial<IOrder>) => {
     return OrderModel.updateOne(data, { new: true });
   };
+
+  findAvailableOrder = async (riderId: string) => {
+    return OrderModel.findOne({
+      riderId,
+      status: { $ne: "delivered" },
+    });
+  };
+
+  findOneAndUpdateRider = async (
+    orderId: string,
+    riderId: string,
+    riderName: string,
+    riderPhone: number,
+  ) => {
+    return OrderModel.findOneAndUpdate(
+      { _id: orderId, riderId: null },
+      {
+        riderId,
+        riderName,
+        riderPhone,
+        status: "rider_assigned",
+      },
+      { new: true },
+    );
+  };
+
+  findOrderWithRestaurantDetails = async (riderId: string) => {
+    return OrderModel.findOne({
+      riderId,
+      status: { $ne: "delivered" },
+    }).populate("restaurantId");
+  };
 }

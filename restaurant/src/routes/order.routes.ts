@@ -8,6 +8,7 @@ import { inputCreateOrder } from "../validators/order.schema.js";
 import { RestaurantRepository } from "../repositories/restaurant.repository.js";
 import { CartRepository } from "../repositories/cart.repository.js";
 import { AddressRepository } from "../repositories/address.repository.js";
+import { inputAssignRiderToOrder } from "../validators/rider.schema.js";
 
 const orderRouter = Router();
 
@@ -23,7 +24,11 @@ const orderService = new OrderService(
 );
 const orderController = new OrderController(orderService);
 
-orderRouter.put("/assign/rider", orderController.assignRiderToOrder);
+orderRouter.put(
+  "/assign/rider",
+  validate(inputAssignRiderToOrder),
+  orderController.assignRiderToOrder,
+);
 orderRouter.get("/current/rider", orderController.getCurrentOrderForRider);
 orderRouter.put("/update/status/rider", orderController.updateOrderStatusRider);
 orderRouter.get("/payment/:id", orderController.fetchOrderForPayment);

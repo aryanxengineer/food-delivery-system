@@ -5,7 +5,7 @@ export interface IOrder extends Document {
   restaurantId: string;
   restaurantName: string;
 
-  riderId?: string;
+  riderId: string | null;
   riderPhone?: number;
   riderName?: string;
 

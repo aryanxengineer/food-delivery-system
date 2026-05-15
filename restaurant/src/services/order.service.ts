@@ -13,6 +13,7 @@ import { InputCreateOrderType } from "../validators/order.schema.js";
 import { emitRealtimeEvent } from "../utils/realtime.js";
 import logger from "../config/winston.config.js";
 import { publishEvent } from "../events/publishers/order.publisher.js";
+import { AssignRiderToOrderInputType } from "../validators/rider.schema.js";
 
 export class OrderService {
   constructor(
@@ -234,23 +235,117 @@ export class OrderService {
     }
 
     return order;
-
   };
 
-  assignRiderToOrder = async (riderData: {
-    orderId: string;
-    riderId: string;
-    riderName: string;
-    riderPhone: number;
-  }) => {};
+  assignRiderToOrder = async (riderData: AssignRiderToOrderInputType) => {
+    const { orderId, riderId, riderName, riderPhone } = riderData;
+    const availableOrder =
+      await this.orderRepository.findAvailableOrder(riderId);
 
-  getCurrentOrderForRider = async (riderId: string) => {};
+    if (availableOrder) {
+      throw new BadRequestError("You already have an order");
+    }
 
-  updateOrderStatusRider = async (
-    riderId: string,
-    orderId: string,
-    status: string,
-  ) => {};
+    const order = await this.orderRepository.findById(orderId);
 
-  fetchOrderForPayment = async (orderId: string) => {};
+    if (order?.riderId !== null) {
+      throw new BadRequestError("Order Already taken");
+    }
+
+    const updatedOrder = await this.orderRepository.findOneAndUpdateRider(
+      orderId,
+      riderId,
+      riderName,
+      riderPhone,
+    );
+
+    await emitRealtimeEvent({
+      event: "order:rider_assigned",
+      room: `user:${order.userId}`,
+      payload: order,
+    });
+
+    await emitRealtimeEvent({
+      event: "order:rider_assigned",
+      room: `restaurant:${order.restaurantId}`,
+      payload: order,
+    });
+
+    return updatedOrder;
+  };
+
+  getCurrentOrderForRider = async (riderId: string) => {
+    const order =
+      await this.orderRepository.findOrderWithRestaurantDetails(riderId);
+
+    if (!order) {
+      throw new NotFoundError("Order not found");
+    }
+
+    return order;
+  };
+
+  updateOrderStatusRider = async (orderId: string) => {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundError("Order not found");
+    }
+
+    if (order.status === "rider_assigned") {
+      order.status = "picked_up";
+
+      await order.save();
+
+      await emitRealtimeEvent({
+        event: "order:picked_up",
+        room: `restaurant:${order.restaurantId}`,
+        payload: order,
+      });
+
+      await emitRealtimeEvent({
+        event: "order:picked_up",
+        room: `user:${order.userId}`,
+        payload: order,
+      });
+
+      return;
+    }
+
+    if (order.status === "picked_up") {
+      order.status = "delivered";
+
+      await order.save();
+
+      await emitRealtimeEvent({
+        event: "order:delivered",
+        room: `restaurant:${order.restaurantId}`,
+        payload: order,
+      });
+
+      await emitRealtimeEvent({
+        event: "order:delivered",
+        room: `user:${order.userId}`,
+        payload: order,
+      });
+
+      return;
+    }
+
+    throw new BadRequestError("Invalid order status transition");
+  };
+
+  fetchOrderForPayment = async (orderId: string) => {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundError("Order not found");
+    }
+
+    if (order.paymentStatus !== "pending") {
+      throw new BadRequestError("Order already paid.");
+    }
+
+    return order;
+  };
 }
