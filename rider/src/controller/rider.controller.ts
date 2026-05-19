@@ -4,7 +4,10 @@ import { RiderService } from "../service/rider.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { Response } from "express";
-import { CreateRiderProfileType, UpdateRiderProfileType } from "../validator/rider.schema.js";
+import {
+  CreateRiderProfileType,
+  UpdateRiderProfileType,
+} from "../validator/rider.schema.js";
 
 export class RiderController {
   constructor(private riderService: RiderService) {}
@@ -55,7 +58,7 @@ export class RiderController {
     },
   );
 
-  toggleRiderAvailablity = asyncHandler(
+  toggleRiderAvailability = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const riderId = req.user?._id;
       const data: UpdateRiderProfileType = req.body;
@@ -63,10 +66,16 @@ export class RiderController {
         throw new UnauthorizedError("Unauthorized user - login again");
       }
 
+      const result = await this.riderService.toggleRiderAvailability(
+        riderId,
+        data,
+      );
+
       return sendResponse({
         res,
         statusCode: 200,
-        message: "",
+        message: result.message,
+        data: result.availableRider,
       });
     },
   );
@@ -74,9 +83,17 @@ export class RiderController {
   acceptOrder = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
       const riderId = req.user?._id;
+      const { orderId } = req.params;
+
       if (!riderId) {
         throw new UnauthorizedError("Unauthorized user - login again");
       }
+
+      if (typeof orderId !== "string") {
+        throw new BadRequestError("Bad request - Invalid order id");
+      }
+
+      const result = await this.riderService.acceptOrder(riderId, orderId);
 
       return sendResponse({
         res,

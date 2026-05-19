@@ -16,7 +16,7 @@ riderRoutes.use(isRider);
 
 riderRoutes.post("/new", upload, riderController.addRiderProfile);
 riderRoutes.get("/myprofile", riderController.fetchMyProfile);
-riderRoutes.patch("/toggle", riderController.toggleRiderAvailablity);
+riderRoutes.patch("/toggle", riderController.toggleRiderAvailability);
 riderRoutes.post("/accept/:orderId", riderController.acceptOrder);
 riderRoutes.get("/order/current", riderController.fetchMyCurrentOrder);
 riderRoutes.put("/order/update/:orderId", riderController.updateOrderStatus);

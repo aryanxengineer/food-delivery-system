@@ -11,7 +11,7 @@ export interface IRiderProfile extends Document {
     type: "Point";
     coordinates: [number, number];
   };
-  isAvailble: boolean;
+  isAvailable: boolean;
   lastActiveAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -59,7 +59,7 @@ const riderProfileSchema = new Schema<IRiderProfile>(
       },
     },
 
-    isAvailble: {
+    isAvailable: {
       type: Boolean,
       default: false,
     },
